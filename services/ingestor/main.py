@@ -1,7 +1,8 @@
 """
-Subscribes to a MQTT topic specified in root lvl .env file.
-(Next step: write to DB on each message.)
+Subscribes to MQTT topics and writes to mqtt_summary (summary payloads) or mqtt_points (points payloads).
+Payload shapes: summary = ts, interval, latest, rollups, control; points = ts, interval, points.
 """
+import json
 import os
 import time
 from pathlib import Path
@@ -18,12 +19,32 @@ for _d in (_root, Path(__file__).resolve().parent):
         load_dotenv(_env)
 load_dotenv()  # fallback: cwd .env
 
-INSERT_SQL = "INSERT INTO mqtt_messages (topic, payload) VALUES (%s, %s);"
+INSERT_SUMMARY_SQL = """
+INSERT INTO mqtt_summary (topic, report_ts, interval_first_ts, interval_last_ts, sample_count, dt_sec, latest, rollups, control)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+"""
+INSERT_POINTS_SQL = """
+INSERT INTO mqtt_points (topic, report_ts, interval_first_ts, interval_last_ts, sample_count, dt_sec, points)
+VALUES (%s, %s, %s, %s, %s, %s, %s);
+"""
 
 
 def getenv_int(key: str, default: int) -> int:
     val = os.getenv(key)
     return int(val) if val and val.strip() else default
+
+
+def _interval_fields(interval: dict | None) -> tuple:
+    """Extract (interval_first_ts, interval_last_ts, sample_count, dt_sec) from payload.interval."""
+    if not interval:
+        return (None, None, None, None)
+    return (
+        interval.get("first_ts") or interval.get("interval_first_ts"),
+        interval.get("last_ts") or interval.get("interval_last_ts"),
+        interval.get("sample_count") if "sample_count" in interval else interval.get("count"),
+        interval.get("dt_sec"),
+    )
+
 
 def on_connect(client: mqtt.Client, userdata, flags, reason_code, properties=None):
     topic = userdata["topic"]
@@ -34,12 +55,53 @@ def on_connect(client: mqtt.Client, userdata, flags, reason_code, properties=Non
 
 def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage):
     topic = msg.topic
-    payload = msg.payload.decode("utf-8", errors="replace")
-    print(f"[mqtt] {topic} qos={msg.qos} retain={msg.retain} payload={payload}")
+    raw = msg.payload.decode("utf-8", errors="replace")
+    print(f"[mqtt] {topic} qos={msg.qos} retain={msg.retain} payload={raw[:200]}...")
     conn: psycopg.Connection = userdata["db_conn"]
     try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(f"[db] invalid JSON: {e!r}")
+        return
+    report_ts = data.get("ts")
+    if report_ts is None:
+        print("[db] payload missing 'ts', skipping")
+        return
+    interval = data.get("interval")
+    i_first, i_last, sample_count, dt_sec = _interval_fields(interval)
+    try:
         with conn.cursor() as curr:
-            curr.execute(INSERT_SQL, (topic, payload))
+            if "latest" in data and "rollups" in data and "control" in data:
+                curr.execute(
+                    INSERT_SUMMARY_SQL,
+                    (
+                        topic,
+                        report_ts,
+                        i_first,
+                        i_last,
+                        sample_count,
+                        dt_sec,
+                        json.dumps(data.get("latest") or {}),
+                        json.dumps(data.get("rollups") or {}),
+                        json.dumps(data.get("control") or {}),
+                    ),
+                )
+            elif "points" in data:
+                curr.execute(
+                    INSERT_POINTS_SQL,
+                    (
+                        topic,
+                        report_ts,
+                        i_first,
+                        i_last,
+                        sample_count,
+                        dt_sec,
+                        json.dumps(data.get("points") or []),
+                    ),
+                )
+            else:
+                print("[db] payload has neither (latest,rollups,control) nor points, skipping")
+                return
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -50,6 +112,7 @@ def on_disconnect(client: mqtt.Client, userdata, reason_code, properties=None):
 
 def main():
     topic = os.getenv("MQTT_TOPIC")
+    print("using topic value:", topic)
     if not topic:
         raise SystemExit("Missing MQTT_TOPIC in .env")
 
@@ -68,18 +131,18 @@ def main():
             "Missing DATABASE_URL (or DB_URL) in env (e.g., postgres://postgres:postgres@timescaledb:5432/app)"
         )
 
-    # Connect to DB and ensure init script has created the table (handles post down -v startup)
+    # Connect to DB and ensure init script has created the tables (handles post down -v startup)
     for attempt in range(1, 31):
         try:
             db_conn = psycopg.connect(db_url)
             with db_conn.cursor() as cur:
                 cur.execute(
-                    "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'mqtt_messages'"
+                    "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('mqtt_summary', 'mqtt_points')"
                 )
-                if cur.fetchone() is None:
+                if cur.rowcount < 2:
                     db_conn.close()
-                    raise RuntimeError("table mqtt_messages not found")
-            print("[db] connected and table mqtt_messages ready")
+                    raise RuntimeError("tables mqtt_summary and mqtt_points not found")
+            print("[db] connected and tables mqtt_summary, mqtt_points ready")
             break
         except Exception as e:
             if attempt == 30:
@@ -113,4 +176,5 @@ def main():
         client.disconnect()
 
 if __name__ == "__main__":
+    print("running main")
     main()

@@ -6,22 +6,24 @@ Pull docker images / startup the project's containers
 docker compose up -d
 ```
 
-(Optional but insightful) View container logs
-
+view logs
 ```bash
-docker compose logs -f mosquitto timescaledb <any other container names you wish to view logs>
+docker compose logs -f mosquitto timescaledb ingestor
 ```
 
-From the terminal of the container, watch mqtt messages
+- **ingestor** – Python subscriber; when it receives a message it prints e.g. `[mqtt] pi-peripherals ... payload=...`. Use `docker compose logs -f ingestor` to see incoming messages.
+- **mosquitto** – Broker daemon; it logs to a file inside the container (`/mosquitto/log/mosquitto.log`), not to stdout, so `docker compose logs mosquitto` usually only shows startup. To see broker activity: `docker compose exec mosquitto tail -f /mosquitto/log/mosquitto.log`.
+
+From the terminal of the container, watch MQTT messages (raw subscribe)
 
 ```bash
-docker compose exec mosquitto mosquitto_sub -h localhost -t 'test/topic' -v
+docker compose exec mosquitto mosquitto_sub -h localhost -t 'pi-peripherals' -v
 ```
 
-From a different device on your wifi network, publish a message to the broker which the subsriber is listening to
+From a different device on your wifi network, publish a message to the broker which the subscriber is listening to
 
 ```bash
-mosquitto_pub -h <1.9.168.1.[ip of computer running the container]> -p 1883 -t '<topic>' -m {"from": "device2"}
+mosquitto_pub -h <192.168.1.[ip of computer running the container]> -p 1883 -t '<topic>' -m '{"from": "device2"}'
 ```
 
 ## Data Stuff
@@ -39,7 +41,7 @@ docker compose exec timescaledb psql -U postgres -d app
 run up some sql commands
 
 ```sql
-SELECT * FROM mqtt_messages ORDER BY ts DESC LIMIT 20;
+SELECT * FROM mqtt_summary ORDER BY ts DESC LIMIT 20;
 ```
 
 ## Networking Stuff
