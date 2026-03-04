@@ -63,10 +63,10 @@ def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage):
     except json.JSONDecodeError as e:
         print(f"[db] invalid JSON: {e!r}")
         return
-    # Prefer a descriptive "timestamp" field but tolerate legacy "ts".
+    
     report_ts = data.get("timestamp")
     if report_ts is None:
-        print("[db] payload missing 'ts', skipping")
+        print("[db] payload missing 'timestamp', skipping")
         return
     interval = data.get("interval")
     i_first, i_last, sample_count, dt_sec = _interval_fields(interval)
@@ -153,6 +153,10 @@ def main():
     userdata = {"topic": topic, "qos": qos, "db_conn": db_conn}
     
     client = mqtt.Client(client_id=client_id, userdata=userdata)
+    tls = os.getenv("MQT_TLS", "").strip().lower() in {"1","true","yes","y","on"}
+    if tls:
+        client.tls_set()
+        client.tls_insecure_set(False)
     if username is not None:
         client.username_pw_set(username, password)
 
