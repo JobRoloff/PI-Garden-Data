@@ -63,7 +63,8 @@ def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage):
     except json.JSONDecodeError as e:
         print(f"[db] invalid JSON: {e!r}")
         return
-    report_ts = data.get("ts")
+    # Prefer a descriptive "timestamp" field but tolerate legacy "ts".
+    report_ts = data.get("timestamp")
     if report_ts is None:
         print("[db] payload missing 'ts', skipping")
         return
@@ -176,5 +177,4 @@ def main():
         client.disconnect()
 
 if __name__ == "__main__":
-    print("running main")
     main()

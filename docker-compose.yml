@@ -3,10 +3,14 @@ services:
     image: eclipse-mosquitto:2
     container_name: mosquitto
     ports:
-      - "1883:1883"   # MQTT
-      - "9001:9001"   # MQTT over WebSockets (optional; enabled via config below)
+      - "127.0.0.1:1883:1883" #for binding mosquitto 1883 to localhost
+      - "8883:8883" #public mqtt over tls
+      - "9001:9001" #for browser client web sockets
     volumes:
-      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/config:/mosquitto/config:ro #give container access to hostt managed certs at runtime
+      - ./mosquitto/certs:/mosquitto/certs:ro
+      - ./mosquitto/passwd:/mosquitto/passwd:ro #mount repo's pwfile and acl file into the container so mosquitto can encorce authentication (pwfile) && authoriztion (aclfile)
+      - ./mosquitto/acl:/mosquitto/acl:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     restart: unless-stopped
@@ -21,7 +25,7 @@ services:
     image: timescale/timescaledb:latest-pg17
     container_name: timescaledb
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -55,3 +59,7 @@ volumes:
   mosquitto_data:
   mosquitto_log:
   timescale_data:
+
+networks:
+  internal:
+    driver: bridge

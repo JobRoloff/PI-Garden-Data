@@ -16,8 +16,16 @@ CREATE TABLE IF NOT EXISTS mqtt_summary (
   control JSONB NOT NULL DEFAULT '{}'
 );
 
--- Points messages (points topic): one row per flush, raw series array
--- Payload shape: ts, interval, points
+-- Points messages (points topic): one row per flush, raw series array.
+-- Payload shape (outer envelope): ts|timestamp, interval, points
+-- Each element in points is a discriminated union:
+--   - Sensor reading:
+--       { "timestamp": <float>, "kind": "sensor_reading", "sensor_id": "...", "sensor_type": "...",
+--         "series": { <measurement_name>: <number>, ... },
+--         "actuators": { <actuator_id>: <bool|number>, ... } }
+--   - Actuator event:
+--       { "timestamp": <float>, "kind": "actuator_event", "actuator_id": "...",
+--         "value": <bool|number>, "reason": "...", "requested_duration_s": <float|null> }
 CREATE TABLE IF NOT EXISTS mqtt_points (
   ts TIMESTAMPTZ NOT NULL DEFAULT now(),
   topic TEXT NOT NULL,

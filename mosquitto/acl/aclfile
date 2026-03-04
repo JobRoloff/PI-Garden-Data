@@ -1,0 +1,14 @@
+# pi publish telemetry
+user pi_garden
+topic write pi-peripherals/points
+topic write pi-peripherals/summary
+
+
+# cloud run client can read telemetry and write commands
+user cloudrun
+topic read pi-peripherals/#
+topic write pi-garden/commands
+
+# 
+user job
+topic readwrite #
