@@ -11,4 +11,3 @@ view logs
 docker compose logs -f mosquitto timescaledb ingestor
 ```
 
-

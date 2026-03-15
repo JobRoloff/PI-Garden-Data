@@ -1,0 +1,157 @@
+/* Material Design 3 theme tokens – loaded by theme class on root */
+@import '../css/light.css';
+@import '../css/dark.css';
+
+:root {
+  /* Default to light; .dark on html overrides */
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: 'Roboto', system-ui, -apple-system, sans-serif;
+  background: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Safe area for iPad (notch/home indicator) */
+body {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Touch targets ≥ 44px for iPad */
+button,
+[role="button"],
+a.dashboard-card {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Dashboard layout – optimized for 5th gen iPad (1024×768, 2048×1536) */
+.dashboard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 1.5rem;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0.5rem 0;
+}
+
+.dashboard-title {
+  margin: 0;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 500;
+  color: var(--md-sys-color-on-background);
+}
+
+.theme-toggle {
+  padding: 0.5rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--md-sys-color-outline);
+  background: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: var(--md-sys-color-surface-container-high);
+}
+
+.dashboard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow: auto;
+}
+
+.dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.card.surface-container {
+  background: var(--md-sys-color-surface-container);
+  border-radius: 12px;
+  padding: 1rem;
+  overflow: auto;
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.data-table th {
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.data-table td {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.data-table tr:hover td {
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.json-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-loading,
+.table-error,
+.table-empty {
+  padding: 1.5rem;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.table-error {
+  color: var(--md-sys-color-error);
+}

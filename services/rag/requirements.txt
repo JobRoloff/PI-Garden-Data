@@ -1,0 +1,4 @@
+Pinecone
+pinecone[grpc]>=5.0.0
+
+python-dotenv

@@ -33,10 +33,6 @@ run up some sql commands
 SELECT * FROM mqtt_summary ORDER BY ts DESC LIMIT 20;
 ```
 
-### Cloud Storage
-
-
-
 ## Networking Notes
 
 Given:

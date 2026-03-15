@@ -5,6 +5,7 @@ Payload shapes: summary = ts, interval, latest, rollups, control; points = ts, i
 import json
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 import paho.mqtt.client as mqtt
@@ -34,16 +35,36 @@ def getenv_int(key: str, default: int) -> int:
     return int(val) if val and val.strip() else default
 
 
+def _to_unix_seconds(value) -> float | None:
+    """Convert timestamp to Unix seconds (float). Accepts number or ISO 8601 string."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
 def _interval_fields(interval: dict | None) -> tuple:
     """Extract (interval_first_ts, interval_last_ts, sample_count, dt_sec) from payload.interval."""
     if not interval:
         return (None, None, None, None)
-    return (
-        interval.get("first_ts") or interval.get("interval_first_ts"),
-        interval.get("last_ts") or interval.get("interval_last_ts"),
-        interval.get("sample_count") if "sample_count" in interval else interval.get("count"),
-        interval.get("dt_sec"),
-    )
+    i_first = interval.get("first_ts") or interval.get("interval_first_ts")
+    i_last = interval.get("last_ts") or interval.get("interval_last_ts")
+    if isinstance(i_first, str):
+        i_first = _to_unix_seconds(i_first)
+    if isinstance(i_last, str):
+        i_last = _to_unix_seconds(i_last)
+    sample_count = interval.get("sample_count") if "sample_count" in interval else interval.get("count")
+    dt_sec = interval.get("dt_sec")
+    return (i_first, i_last, sample_count, dt_sec)
 
 
 def on_connect(client: mqtt.Client, userdata, flags, reason_code, properties=None):
@@ -64,9 +85,13 @@ def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage):
         print(f"[db] invalid JSON: {e!r}")
         return
     
-    report_ts = data.get("timestamp")
+    report_ts_raw = data.get("timestamp") or data.get("ts")
+    if report_ts_raw is None:
+        print("[db] payload missing 'timestamp' or 'ts', skipping")
+        return
+    report_ts = _to_unix_seconds(report_ts_raw)
     if report_ts is None:
-        print("[db] payload missing 'timestamp', skipping")
+        print(f"[db] could not parse timestamp {report_ts_raw!r}, skipping")
         return
     interval = data.get("interval")
     i_first, i_last, sample_count, dt_sec = _interval_fields(interval)
