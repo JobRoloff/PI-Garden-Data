@@ -57,6 +57,20 @@ services:
       MQTT_TOPIC: "pi-peripherals/#"
     restart: unless-stopped
 
+  web-api:
+    build: ./services/web-api
+    container_name: web-api
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@timescaledb:5432/app
+      CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      WS_POLL_INTERVAL_SEC: "2"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
 volumes:
   mosquitto_data:
   mosquitto_log:

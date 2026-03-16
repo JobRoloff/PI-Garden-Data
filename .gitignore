@@ -1,7 +1,10 @@
 .env
 .venv
 __pycache__/
+.vscode/
 
-/Web/.next
-/Web/node_modules
+Web/node_modules
+Web/dist
 
+
+tmp/

@@ -1,3 +1,7 @@
+# Pi Garden Data
+
+A repo for storage and visualization of the raspbery pi garden.
+
 ## Getting started
 
 Pull docker images / startup the project's containers
@@ -7,7 +11,15 @@ docker compose up -d
 ```
 
 view logs
+
 ```bash
 docker compose logs -f mosquitto timescaledb ingestor
 ```
 
+view web ui
+
+```bash
+cd Web && npm run dev
+```
+
+![webui screenshot](./Web/public/web-ui-light.png)
