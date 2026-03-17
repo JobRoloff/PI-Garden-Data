@@ -2,9 +2,12 @@
 .venv
 __pycache__/
 .vscode/
+.DS_Store
+**/.DS_Store
 
 Web/node_modules
 Web/dist
 
 
 tmp/
+NOTES.md
