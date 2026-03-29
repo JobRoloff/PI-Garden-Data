@@ -1,5 +1,3 @@
--- Summary messages (main topic): one row per flush
--- Payload shape: ts, interval, latest, rollups, control
 CREATE TABLE IF NOT EXISTS mqtt_summary (
   ts TIMESTAMPTZ NOT NULL DEFAULT now(),
   topic TEXT NOT NULL,

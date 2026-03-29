@@ -15,11 +15,11 @@ export function ConnectionStatus() {
       </span>
       {connected && (
         <>
-          <span
+          {/* <span
             className={`inline-block w-2.5 h-2.5 rounded-full ${dbOk ? 'bg-[#626E60]' : 'bg-amber-500'}`}
             title={dbOk ? 'Database OK' : 'Database error'}
-          />
-          <span className="text-muted-foreground">DB: {dbOk ? 'OK' : 'Error'}</span>
+          /> */}
+          {/* <span className="text-muted-foreground">DB: {dbOk ? 'OK' : 'Error'}</span> */}
         </>
       )}
     </div>
