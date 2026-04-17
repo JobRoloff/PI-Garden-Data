@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from db_service import ( get_pool, init_pool, close_pool, fetch_latest_sensor_readings, fetch_scalar_points_24h, fetch_light_points_24h, fetch_chart_data_24h, fetch_recent_event_feed, fetch_recent_actuator_events, )
+from db_service import ( fetch_rollups_24h, get_pool, init_pool, close_pool, fetch_latest_sensor_readings, fetch_scalar_points_24h, fetch_light_points_24h, fetch_chart_data_24h, fetch_recent_event_feed, fetch_recent_actuator_events, )
 POLL_INTERVAL_SEC = float(os.getenv("WS_POLL_INTERVAL_SEC", "30"))
 
 # All connected WebSocket clients
@@ -75,9 +75,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="PI Garden Web API", lifespan=lifespan)
+origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://192.168.1.228:5173"
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(","),
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,7 +91,16 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok, good job this is working as needed"}
+
+
+@app.get("/past-day-rollups")
+def past_day_rollups():
+    pool = get_pool()
+    if not pool:    
+        return {"error": "Database connection not available"}   
+    with pool.connection() as conn:
+        return fetch_rollups_24h(conn)
 
 
 @app.get("/chart-24h")

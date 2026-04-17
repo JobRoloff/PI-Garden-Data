@@ -6,14 +6,6 @@ from typing import Any;
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Max summary rows for 24h chart (e.g. ~5 min interval = 288)
-CHART_24H_LIMIT = int(os.getenv("WS_CHART_24H_LIMIT", "500"))
-EVENT_FEED_LIMIT = int(os.getenv("WS_EVENT_FEED_LIMIT", "50"))
-# Max mqtt_points rows to scan for 24h light spectrum chart
-LIGHT_POINTS_24H_LIMIT = int(os.getenv("WS_LIGHT_POINTS_24H_LIMIT", "500"))
-# Max mqtt_points rows to scan for 24h scalar (temp/humidity) chart
-SCALAR_POINTS_24H_LIMIT = int(os.getenv("WS_SCALAR_POINTS_24H_LIMIT", "500"))
-
 # Load .env from project root and service dir
 _root = Path(__file__).resolve().parent.parent.parent
 for _d in (_root, Path(__file__).resolve().parent):
@@ -22,6 +14,15 @@ for _d in (_root, Path(__file__).resolve().parent):
         load_dotenv(_env)
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Max summary rows for 24h chart (e.g. ~5 min interval = 288)
+CHART_24H_LIMIT = int(os.getenv("WS_CHART_24H_LIMIT", "500"))
+EVENT_FEED_LIMIT = int(os.getenv("WS_EVENT_FEED_LIMIT", "50"))
+# Max mqtt_points rows to scan for 24h light spectrum chart
+LIGHT_POINTS_24H_LIMIT = int(os.getenv("WS_LIGHT_POINTS_24H_LIMIT", "500"))
+# Max mqtt_points rows to scan for 24h scalar (temp/humidity) chart
+SCALAR_POINTS_24H_LIMIT = int(os.getenv("WS_SCALAR_POINTS_24H_LIMIT", "500"))
+
 
 _pool: ConnectionPool | None = None
 
@@ -323,18 +324,20 @@ def fetch_scalar_points_24h(conn: psycopg.Connection | None) -> list[dict[str, A
                 base_ts = ts.timestamp() if ts and hasattr(ts, "timestamp") else (report_ts or 0)
                 if not isinstance(points, list):
                     continue
-                for p in points:
-                    if not isinstance(p, dict):
+                for point in points:
+                    if not isinstance(point, dict):
                         continue
-                    if p.get("kind") != "sensor_reading":
+                    if point.get("kind") != "sensor_reading":
                         continue
+
+                    # filter out non dht22 sensor readings
                     # For now, focus on DHT22 env sensor; extend as needed
                     if not (
-                        p.get("sensor_type") == "DHT22"
-                        or p.get("sensor_id") == "DHT22"
+                        point.get("sensor_type") == "DHT22"
+                        or point.get("sensor_id") == "DHT22"
                     ):
                         continue
-                    ts_val = p.get("timestamp")
+                    ts_val = point.get("timestamp")
                     if isinstance(ts_val, (int, float)):
                         t_key = float(ts_val)
                     elif isinstance(ts_val, str):
@@ -351,7 +354,7 @@ def fetch_scalar_points_24h(conn: psycopg.Connection | None) -> list[dict[str, A
                                 "ts": str(ts) if ts else None,
                                 "topic": topic,
                                 "report_ts": report_ts,
-                                **p,
+                                **point,
                             },
                         )
                     )
@@ -360,3 +363,58 @@ def fetch_scalar_points_24h(conn: psycopg.Connection | None) -> list[dict[str, A
     except Exception:
         return []
 
+
+
+def fetch_rollups_24h(conn: psycopg.Connection | None) -> list[dict[str, Any]]:
+    """Rollup rows from mqtt_summary for the last 24 hours, in chronological order.
+
+    Returns rows shaped for dashboard charting. If there are no rows in the 24h
+    window, falls back to the most recent N rows so the dashboard still has data.
+    """
+    if not conn:
+        return []
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT ts, topic, report_ts, rollups
+                FROM mqtt_summary
+                WHERE ts >= now() - interval '24 hours'
+                ORDER BY ts DESC
+                LIMIT %s
+                """,
+                (CHART_24H_LIMIT,),
+            )
+            rows = cur.fetchall()
+
+            if not rows:
+                cur.execute(
+                    """
+                    SELECT ts, topic, report_ts, rollups
+                    FROM mqtt_summary
+                    ORDER BY ts DESC
+                    LIMIT %s
+                    """,
+                    (CHART_24H_LIMIT,),
+                )
+                rows = cur.fetchall()
+
+            # Convert newest-first query result into chronological order for charts
+            rows = list(reversed(rows))
+
+            out: list[dict[str, Any]] = []
+            for ts, topic, report_ts, rollups in rows:
+                out.append(
+                    {
+                        "ts": str(ts) if ts else None,
+                        "topic": topic,
+                        "report_ts": report_ts,
+                        "rollups": rollups if isinstance(rollups, dict) else {},
+                    }
+                )
+
+            return out
+
+    except Exception:
+        return []

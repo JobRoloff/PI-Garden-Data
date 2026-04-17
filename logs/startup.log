@@ -1,0 +1,7 @@
+[Sat 04/04/2026 17:51:00.93] Script execution started.
+[Sat 04/04/2026 17:51:00.93] SCRIPT VERSION: 2026-03-29-D
+[Sat 04/04/2026 17:51:00.93] Compose directory: C:\Users\jobro\PI-Garden-Data
+[Sat 04/04/2026 17:51:01.04] Docker Desktop process already running.
+[Sat 04/04/2026 17:51:01.04] Docker is ready on attempt 1.
+[Sat 04/04/2026 17:51:03.36] Running: docker compose up -d
+^C
